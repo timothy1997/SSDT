@@ -1,0 +1,37 @@
+[1mdiff --git a/SocketsHeader.py b/SocketsHeader.py[m
+[1mdeleted file mode 100644[m
+[1mindex 0a10fee..0000000[m
+[1m--- a/SocketsHeader.py[m
+[1m+++ /dev/null[m
+[36m@@ -1,31 +0,0 @@[m
+[31m-import socket[m
+[31m-[m
+[31m-class MySocket:[m
+[31m-    # For demonstration only, not a great implementation[m
+[31m-    def __init__(self, sock=None):[m
+[31m-        if sock is None:[m
+[31m-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)[m
+[31m-        else:[m
+[31m-            self.sock = sock[m
+[31m-[m
+[31m-    def connect(self, host, port):[m
+[31m-        self.sock.connect((host, port))[m
+[31m-[m
+[31m-    def mysend(self, msg):[m
+[31m-        totalsent = 0[m
+[31m-        while totalsent < MSGLEN:[m
+[31m-            sent = self.sock.send(msg[totalsent:])[m
+[31m-            if sent == 0:[m
+[31m-                raise RuntimeError("socket connection broken")[m
+[31m-            totalsent = totalsent + sent[m
+[31m-[m
+[31m-    def myreceive(self):[m
+[31m-        chunks = [][m
+[31m-        bytes_recd = 0[m
+[31m-        while bytes_recd < MSGLEN:[m
+[31m-            chunk = self.sock.recv(min(MSGLEN - bytes_recd, 2048))[m
+[31m-            if chunk == b'':[m
+[31m-                raise RuntimeError("socket connection broken")[m
+[31m-            chunks.append(chunk)[m
+[31m-            bytes_recd = bytes_recd + len(chunk)[m
+[31m-        return b''.join(chunks)[m
