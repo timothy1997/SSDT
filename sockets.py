@@ -3,7 +3,7 @@
 import sys
 import socket
 import math
-import os
+import os, os.path
 
 # global values
 encoding = 'utf-8'
@@ -28,62 +28,84 @@ def Main():
         serversocket.bind((socket.gethostname(), 8080))
         serversocket.listen(5)
         (clientsocket, address) = serversocket.accept()
-        print("Connection made...\n")
-        message = clientsocket.recv(32)
-        message = message.decode(encoding)
-        chunksnum = math.ceil(int(message) / chunksize)
-        clientsocket.send('1'.encode(encoding))
-        filename = ''
-        chunks = []
-        currentchunk = 0
-        filename = clientsocket.recv(chunksize).decode()
-        while currentchunk < chunksnum:
-            chunk = clientsocket.recv(chunksize).decode(encoding)
-            chunks.append(chunk)
-            currentchunk += 1
-        finalMessage = "".join(chunks)
-        clientsocket.close()
-        # Now we will output the file transferred in its own directory
         os.makedirs(address[0])
-        f = open(address[0] + '/' + filename, 'w+')
-        f.write(finalMessage)
+        print("Connection made...\n")
+
+        filenum = clientsocket.recv(32).decode(encoding)
+        clientsocket.send('1'.encode(encoding))
+
+        for i in range(0, int(filenum)):
+            message = clientsocket.recv(32).decode(encoding)
+            chunksnum = math.ceil(int(message) / chunksize)
+            clientsocket.send('1'.encode(encoding))
+            filename = ''
+            chunks = []
+            currentchunk = 0
+            filename = clientsocket.recv(chunksize).decode()
+            while currentchunk < chunksnum:
+                chunk = clientsocket.recv(chunksize).decode(encoding)
+                chunks.append(chunk)
+                currentchunk += 1
+            finalMessage = "".join(chunks)
+            f = open(address[0] + '/' + filename, 'w+')
+        clientsocket.close()
     elif response == 2: # (Client)
         # What's going on here: We get the hostname and the file to be sent, then we read the contents
         # of the file. We create a socket that utilizes an IPv4, TCP connection, and send them the size
         # of the file (which is info that they will need). We receive a verification message, we indicates
         # whether they received the message or not. If they did, we send them the entire message
-        hostname = input('Hostname: ')
-        filename = input('File: ')
-        message = ''
-        with open(filename, 'r') as content_file:
-            message = content_file.read()
+        # hostname = input('Hostname: ')
+        # directory = input('Directory: ')
+        hostname = 'tim-Inspiron-7352'
+        directory = '/home/tim/Desktop/SSDT/Speeches'
+
+        # connect with the host
         clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         clientsocket.connect((hostname, 8080))
-        clientsocket.send(str(len(message)).encode(encoding))
-        verification = clientsocket.recv(1)
-        verification = verification.decode(encoding)
-        if verification == '1':
-            # What's going on here: We calculate the number of chunks we will send, and send the name
-            # of the file. Then we begin sending the actual message. While there are still chunks to
-            # send (currentchunk keeps track) of the chunks sent), we must send them. If the current
-            # chunk to be sent is not the last one, you send 4096 bytes. Otherwise, we just send the
-            # rest of the bytes. If 0 is returned, then something went wrong.
-            chunksnum = math.ceil(float(len(message)) / chunksize)
-            currentchunk = 0
-            clientsocket.send(filename.encode(encoding))
-            while currentchunk < chunksnum:
-                if currentchunk < (chunksnum - 1):
-                    tosend = message[currentchunk*chunksize:(currentchunk*chunksize)+chunksize]
-                    sent = clientsocket.send(tosend.encode(encoding))
+
+        # send the host the number of files we're dealing with
+        filenum = 0
+        for nfile in os.listdir(directory):
+            if not os.path.isfile(nfile):
+                filenum += 1
+        clientsocket.send(str(filenum).encode(encoding))
+
+        # If they send back '1'
+        fverification = clientsocket.recv(1)
+        fverification = fverification.decode(encoding)
+        if fverification == '1':
+            # Send them all the files isn the directory
+            for nfile in os.listdir(directory):
+                filename = os.path.basename(nfile)
+                if not os.path.isfile(directory + '/' + nfile):
+                    continue
+                with open(directory + '/' + nfile) as b:
+                    message = b.read()
+                clientsocket.send(str(len(message)).encode(encoding))
+                verification = clientsocket.recv(1)
+                verification = verification.decode(encoding)
+                if verification == '1':
+                    # What's going on here: We calculate the number of chunks we will send, and send the name
+                    # of the file. Then we begin sending the actual message. While there are still chunks to
+                    # send (currentchunk keeps track) of the chunks sent), we must send them. If the current
+                    # chunk to be sent is not the last one, you send 4096 bytes. Otherwise, we just send the
+                    # rest of the bytes. If 0 is returned, then something went wrong.
+                    chunksnum = math.ceil(float(len(message)) / chunksize)
+                    currentchunk = 0
+                    clientsocket.send(filename.encode(encoding))
+                    while currentchunk < chunksnum:
+                        if currentchunk < (chunksnum - 1):
+                            tosend = message[currentchunk*chunksize:(currentchunk*chunksize)+chunksize]
+                            sent = clientsocket.send(tosend.encode(encoding))
+                        else:
+                            tosend = message[currentchunk*chunksize:]
+                            sent = clientsocket.send(tosend.encode(encoding))
+                        currentchunk += 1
+                        if sent == 0:
+                            raise RuntimeError("socket connection broken")
                 else:
-                    tosend = message[currentchunk*chunksize:]
-                    sent = clientsocket.send(tosend.encode(encoding))
-                currentchunk += 1
-                if sent == 0:
-                    raise RuntimeError("socket connection broken")
-        else:
-            print("Some error occured...")
-        clientsocket.close()
+                    print("Some error occured...")
+            clientsocket.close()
     else:
         return
 
